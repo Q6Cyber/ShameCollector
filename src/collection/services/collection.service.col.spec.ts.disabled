@@ -1,0 +1,23 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { CollectionService } from './collection.service';
+import { GlobalModule } from '../../global/global.module';
+import { LoggerService } from '../../global/services/logger.service';
+
+describe('CollectionService', () => {
+  let service: CollectionService;
+  let loggerService: LoggerService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [CollectionService, LoggerService],
+      imports: [GlobalModule],
+    }).compile();
+
+    service = module.get<CollectionService>(CollectionService);
+    loggerService = module.get<LoggerService>(LoggerService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});

@@ -1,0 +1,64 @@
+services:
+  
+  app:
+    build:
+      context: .
+      target: ${ENVIRONMENT}
+      dockerfile: Dockerfile
+      secrets:
+        - npmtoken
+  
+    container_name: smartcollector-master
+    image: us-east1-docker.pkg.dev/q6dev-186015/smartcollector-master-v2/smartcollector-master:v1.0.0
+    ports:
+      - ${PORT}:${PORT} 
+    environment:
+      APP_ID: ${APP_ID}
+      PORT: ${PORT}
+      ENVIRONMENT: ${ENVIRONMENT}
+      LOG_LEVEL: ${LOG_LEVEL}
+      DISABLE_CRON: ${DISABLE_CRON}
+      ES_HOST: ${ES_HOST}
+      ES_PROTO: ${ES_PROTO}
+      ES_PORT: ${ES_PORT}
+      ES_USER: ${ES_USER}
+      ES_PASS: ${ES_PASS}
+      ES_CARDS: ${ES_CARDS}
+      ES_SOURCES: ${ES_SOURCES}
+      ES_CLIENTS: ${ES_CLIENTS}
+      ES_BUDGETS: ${ES_BUDGETS}
+      ES_BASES: ${ES_BASES}
+      ES_SMARTCOLLECTION: ${ES_SMARTCOLLECTION}
+      #Airbrake configuration
+      AIRBRAKE_PROJECT_ID: ${AIRBRAKE_PROJECT_ID}
+      AIRBRAKE_PROJECT_KEY: ${AIRBRAKE_PROJECT_KEY}
+      #Graylog configuration
+      GRAYLOG_HOST: ${GRAYLOG_HOST}
+      GRAYLOG_PORT: ${GRAYLOG_PORT}
+      
+      SEND_TO_PUBSUB_FLAG: ${SEND_TO_PUBSUB_FLAG}
+      SEND_TO_SLACK_FLAG: ${SEND_TO_SLACK_FLAG}
+      WRITE_LOG_FILE_FLAG: ${WRITE_LOG_FILE_FLAG}
+      #Extra flag run SC getBinStats after update bin stats by priority
+      RUN_SMART_COLLECTOR: ${RUN_SMART_COLLECTOR}
+      #Save as a image in gcloud bucket
+      GCLOUD_PROJECT: ${GCLOUD_PROJECT}
+      LOGIN_HOST: ${LOGIN_HOST}
+      # COVERNAME SERVICE
+      WASP: ${WASP}
+      NODE_TLS_REJECT_UNAUTHORIZED: ${NODE_TLS_REJECT_UNAUTHORIZED}
+      #Selenium grid configuration
+      SELENIUM_REMOTE_URL_1: ${SELENIUM_REMOTE_URL_1}
+      SELENIUM_REMOTE_URL_2: ${SELENIUM_REMOTE_URL_2}
+      # Redis params
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_DB_INDEX_TEST: ${REDIS_DB_INDEX_TEST}
+      REDIS_DB_INDEX_TARGET_TEST: ${REDIS_DB_INDEX_TARGET_TEST}
+      REDIS_DB_CARD: ${REDIS_DB_CARD}
+      PATH_ROOT: ${PATH_ROOT}
+      HEADLESS: ${HEADLESS}
+
+secrets:
+  npmtoken:
+    file: .npmtoken
