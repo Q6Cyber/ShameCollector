@@ -155,23 +155,26 @@ export class RamsonWareLive extends SeleniumDefault {
     );
 
     // Map each unique URL to the exact OpenSearch tracking schema
-    const formattedUrlList = urls.map((url) => ({
-      url: url,
-      isActive: true,
-      isValid: true,
-      settings: {
-        exactHostMatch: false,
-        wildcardPath: false,
-        wildcardParams: false,
-      },
-      lastPasswordLogin: null,
-      lastCheck: null,
-      lastCookieLogin: null,
-      connType: '',
-      driverType: '',
-      lastLoginType: '',
-      status: '',
-    }));
+    const formattedUrlList = urls.map((rawUrl) => {
+      const isOnion = rawUrl.endsWith('.onion');
+      return {
+        url: isOnion ? `http://${rawUrl}` : `https://${rawUrl}`,
+        isActive: true,
+        isValid: true,
+        settings: {
+          exactHostMatch: false,
+          wildcardPath: false,
+          wildcardParams: false,
+        },
+        lastPasswordLogin: null,
+        lastCheck: null,
+        lastCookieLogin: null,
+        connType: isOnion ? 'TOR_SOCKS' : 'proxy',
+        driverType: 'chrome',
+        lastLoginType: '',
+        status: '',
+      };
+    });
 
     // Wrap and return the complete group object
     return {
@@ -204,7 +207,10 @@ export class RamsonWareLive extends SeleniumDefault {
 
         // Build the final JSON object
         if (cleanUrls.length > 0) {
-          const groupPayload = this.createRansomwareGroupRecord(group.name, cleanUrls);
+          const groupPayload = this.createRansomwareGroupRecord(
+            group.name,
+            cleanUrls,
+          );
           results.push(groupPayload);
         }
       }

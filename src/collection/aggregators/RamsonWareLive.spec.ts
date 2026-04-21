@@ -103,7 +103,6 @@ describe('RamsonWareLive', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-  
 
   describe('searchProcess', () => {
     it('should successfully retrieve and parse data when aggregator is online', async () => {
@@ -128,7 +127,7 @@ describe('RamsonWareLive', () => {
                 <td>Yes</td> <!-- Available column (index 3) -->
                 <td>Status</td>
                 <td>Last Check</td>
-                <td>http://test-group.onion</td> <!-- FQDN column (index 6) -->
+                <td>0mega.cc</td> <!-- FQDN column (index 6) -->
               </tr>
             </tbody>
           </table>
@@ -136,12 +135,15 @@ describe('RamsonWareLive', () => {
       `;
 
       // Mock getSourceText to return groups HTML first, then details HTML
-      jest.spyOn(service as any, 'getSourceText')
+      jest
+        .spyOn(service as any, 'getSourceText')
         .mockResolvedValueOnce(mockGroupsHtml)
         .mockResolvedValueOnce(mockDetailsHtml);
 
       // Mock openGroupLocations to avoid actually calling selenium get (already tested separately)
-      const openGroupLocationsSpy = jest.spyOn(service as any, 'openGroupLocations').mockResolvedValue(undefined);
+      const openGroupLocationsSpy = jest
+        .spyOn(service as any, 'openGroupLocations')
+        .mockResolvedValue(undefined);
 
       const result = await service['searchProcess']();
 
@@ -158,10 +160,14 @@ describe('RamsonWareLive', () => {
       expect(post.state).toBe('ACTIVE');
       expect(post.sourceName).toBe('TestGroup');
       expect(post.urlList).toHaveLength(1);
-      expect(post.urlList[0].url).toBe('http://test-group.onion');
+      expect(post.urlList[0].url).toBe('https://0mega.cc');
+      expect(post.urlList[0].connType).toBe('proxy');
+      expect(post.urlList[0].driverType).toBe('chrome');
       expect(post.urlList[0].isActive).toBe(true);
 
-      expect(mockLoggerService.info).toHaveBeenCalledWith(expect.stringContaining('Starting extraction'));
+      expect(mockLoggerService.info).toHaveBeenCalledWith(
+        expect.stringContaining('Starting extraction'),
+      );
     });
   });
 
@@ -170,13 +176,17 @@ describe('RamsonWareLive', () => {
       const group = { name: 'TestGroup', link: '/group/test-group' };
 
       // Mock driver.get to throw a timeout error
-      mockSeleniumService.driver.get.mockRejectedValue(new Error('504 Gateway Timeout'));
+      mockSeleniumService.driver.get.mockRejectedValue(
+        new Error('504 Gateway Timeout'),
+      );
 
       await service['openGroupLocations'](group);
 
       // Verify error was logged with the expected header/message
       expect(mockLoggerService.error).toHaveBeenCalledWith(
-        expect.stringContaining('RamsonWareLive::openGroupLocations:: Error expanding locations for TestGroup'),
+        expect.stringContaining(
+          'RamsonWareLive::openGroupLocations:: Error expanding locations for TestGroup',
+        ),
         expect.any(Error),
       );
     });
@@ -187,16 +197,18 @@ describe('RamsonWareLive', () => {
 
       mockSeleniumService.driver.get.mockResolvedValue(undefined);
       mockSeleniumService.driver.findElement.mockResolvedValue(mockToggle);
-      
+
       // Mock clickElement to avoid selenium script execution in test
-      const clickElementSpy = jest.spyOn(service as any, 'clickElement').mockResolvedValue(undefined);
+      const clickElementSpy = jest
+        .spyOn(service as any, 'clickElement')
+        .mockResolvedValue(undefined);
       // Mock awaitingTime (sleep)
       jest.spyOn(service as any, 'awaitingTime').mockResolvedValue(undefined);
 
       await service['openGroupLocations'](group);
 
       expect(mockSeleniumService.driver.get).toHaveBeenCalledWith(
-        'https://www.ransomware.live/group/test-group'
+        'https://www.ransomware.live/group/test-group',
       );
       expect(mockSeleniumService.driver.findElement).toHaveBeenCalledWith({
         selector: 'a#toggle-locations',
