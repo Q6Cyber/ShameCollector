@@ -50,10 +50,11 @@ export class CollectionOrchestratorService {
         ...target,
       };
       // call fork process
-      await this.collectionService.startAggregatorCollector(collectionParams);
+      const resultCollection = await this.collectionService.startAggregatorCollector(collectionParams);
       await this.loggerService.info(
         `${loggerHeader}::${action}-Collection for ${target.sourceName} completed successfully`,
       );
+      return resultCollection;
     } catch (error) {
       this.loggerService.error(
         `${loggerHeader}::Error creating aggregator collection`,

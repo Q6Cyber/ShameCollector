@@ -37,16 +37,8 @@ export class MainController {
   @Get('getShameSiteSources')
   public async getShameSiteSources(): Promise<any> {
     if (process.env.DISABLE_CRON === '1') return true;
-    // const targets = [
-    //   'anonymsms',
-    //   'Free Phone Number',
-    //   'smscodeonline',
-    //   'sms24',
-    //   '7sim',
-    //   'online-sms',
-    // ];
-    this.mainOrchestratorService.getShameSiteSources();
-    return true;
+    const result = await this.mainOrchestratorService.getShameSiteSources();
+    return result;
   }
 
   @Get('isShameCollectorActive')
