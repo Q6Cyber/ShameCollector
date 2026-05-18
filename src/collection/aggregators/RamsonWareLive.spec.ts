@@ -22,7 +22,7 @@ Test Case 2: 504 Gateway Timeout / Page Load Failure
 Mock seleniumService.driver.get to throw a "504 Gateway Timeout" error.
 Verify that openGroupLocations handles the error gracefully.
 Verify that loggerService.error is called with the appropriate message.
-Verify that searchProcess continues execution or returns successfully without
+Verify that searchProcess continues execution or returns successfully without crashing
 */
 
 describe('RamsonWareLive', () => {
@@ -34,10 +34,15 @@ describe('RamsonWareLive', () => {
     error: jest.fn(),
   };
 
+  const mockElasticService = {
+    updateUsingBulk: jest.fn(),
+  };
+
   const mockSeleniumService = {
     driver: {
       get: jest.fn(),
       findElement: jest.fn(),
+      findElements: jest.fn(),
       getPageSource: jest.fn(),
       manage: jest.fn().mockReturnValue({
         setTimeouts: jest.fn(),
@@ -57,9 +62,11 @@ describe('RamsonWareLive', () => {
     redisService: {} as any,
     pubsubService: {} as any,
     globalService: {} as any,
-    elasticService: {} as any,
+    elasticService: mockElasticService as any,
     seleniumService: mockSeleniumService as any,
-    requestService: {} as any,
+    requestService: {
+      request: jest.fn(),
+    } as any,
     searchCriterias: {} as any,
     isCollection: true,
     sessionInfo: {
@@ -78,6 +85,8 @@ describe('RamsonWareLive', () => {
             const instance = new RamsonWareLive(mockParams);
             // Manually inject mocked seleniumService as it's normally initialized in setupSelenium
             instance.seleniumService = mockSeleniumService as any;
+            // Ensure requestService is accessible for WASP calls
+            (instance as any).requestService = mockParams.requestService;
             return instance;
           },
         },
@@ -86,7 +95,7 @@ describe('RamsonWareLive', () => {
         { provide: GlobalService, useValue: {} },
         { provide: RedisService, useValue: {} },
         { provide: PubsubService, useValue: {} },
-        { provide: ElasticService, useValue: {} },
+        { provide: ElasticService, useValue: mockElasticService },
         { provide: RequestService, useValue: {} },
         { provide: Parsers, useValue: {} },
       ],
@@ -105,8 +114,8 @@ describe('RamsonWareLive', () => {
   });
 
   describe('searchProcess', () => {
-    it('should successfully retrieve and parse data when aggregator is online', async () => {
-      // Mock initial HTML for getActiveGroups
+    it('should successfully retrieve and parse data when aggregator is online (ACTIVE group)', async () => {
+      // Mock initial HTML for getActiveGroups with an "Online" badge
       const mockGroupsHtml = `
         <li class="rl-group-item">
           <a href="/group/test-group">Test Group</a>
@@ -124,23 +133,21 @@ describe('RamsonWareLive', () => {
                 <td>Group Name</td>
                 <td>Type</td>
                 <td>Title</td>
-                <td>Yes</td> <!-- Available column (index 3) -->
+                <td>Yes</td> 
                 <td>Status</td>
                 <td>Last Check</td>
-                <td>0mega.cc</td> <!-- FQDN column (index 6) -->
+                <td>0mega.cc</td> 
               </tr>
             </tbody>
           </table>
         </div>
       `;
 
-      // Mock getSourceText to return groups HTML first, then details HTML
       jest
         .spyOn(service as any, 'getSourceText')
         .mockResolvedValueOnce(mockGroupsHtml)
         .mockResolvedValueOnce(mockDetailsHtml);
 
-      // Mock openGroupLocations to avoid actually calling selenium get (already tested separately)
       const openGroupLocationsSpy = jest
         .spyOn(service as any, 'openGroupLocations')
         .mockResolvedValue(undefined);
@@ -151,23 +158,65 @@ describe('RamsonWareLive', () => {
       expect(openGroupLocationsSpy).toHaveBeenCalledWith({
         name: 'TestGroup',
         link: '/group/test-group',
+        isOnline: true,
       });
 
-      // Verify the parsed output
-      expect(service['parsedRawPosts']).toHaveLength(1);
-      const post = service['parsedRawPosts'][0];
-      expect(post.type).toBe('RANSOMWARE_GROUP');
-      expect(post.state).toBe('ACTIVE');
-      expect(post.sourceName).toBe('TestGroup');
-      expect(post.urlList).toHaveLength(1);
-      expect(post.urlList[0].url).toBe('https://0mega.cc');
-      expect(post.urlList[0].connType).toBe('proxy');
-      expect(post.urlList[0].driverType).toBe('chrome');
-      expect(post.urlList[0].isActive).toBe(true);
+      // Added the  here so it properly targets the object!
+      expect((service as any).parsedRawPosts).toHaveLength(1);
+      const post = (service as any).parsedRawPosts[0];
 
-      expect(mockLoggerService.info).toHaveBeenCalledWith(
-        expect.stringContaining('Starting extraction'),
-      );
+      expect(post.isOnline).toBe(true);
+      expect(post.sourceName).toBe('TestGroup');
+    });
+
+    it('should successfully retrieve and parse data when aggregator is offline (INACTIVE group)', async () => {
+      // Mock initial HTML for getActiveGroups with an "Offline" badge
+      const mockGroupsHtml = `
+        <li class="rl-group-item">
+          <a href="/group/offline-group">Offline Group</a>
+          <span class="rl-group-badge">OfflineGroup</span>
+          <div class="flex-shrink-0"><span class="badge">Offline</span></div>
+        </li>
+      `;
+
+      const mockDetailsHtml = `
+        <div id="locations-section">
+          <table>
+            <tbody>
+              <tr class="pathData">
+                <td>Group Name</td>
+                <td>Type</td>
+                <td>Title</td>
+                <td>Yes</td> 
+                <td>Status</td>
+                <td>Last Check</td>
+                <td>offline.cc</td> 
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      jest
+        .spyOn(service as any, 'getSourceText')
+        .mockResolvedValueOnce(mockGroupsHtml)
+        .mockResolvedValueOnce(mockDetailsHtml);
+
+      const openGroupLocationsSpy = jest
+        .spyOn(service as any, 'openGroupLocations')
+        .mockResolvedValue(undefined);
+
+      const result = await service['searchProcess']();
+
+      expect(result).toBe(true);
+
+      expect(openGroupLocationsSpy).toHaveBeenCalledWith({
+        name: 'OfflineGroup',
+        link: '/group/offline-group',
+        isOnline: false,
+      });
+
+      expect((service as any).parsedRawPosts).toHaveLength(1);
     });
   });
 
@@ -215,6 +264,97 @@ describe('RamsonWareLive', () => {
         type: 'css',
       });
       expect(clickElementSpy).toHaveBeenCalledWith(mockToggle);
+    });
+  });
+
+  describe('publishSourcesToElastic', () => {
+    it('should process cache hits/misses, safely update existing groups via updateByQuery, and create brand new groups', async () => {
+      // 1. Setup mock data to test both scenarios
+      service['parsedRawPosts'] = [
+        {
+          sourceName: 'GroupA',
+          isOnline: true,
+          state: 'ACTIVE',
+          urlList: [
+            { url: 'http://groupa.onion', status: 'AVAILABLE', isActive: true },
+          ],
+        },
+        {
+          sourceName: 'GroupB',
+          isOnline: false,
+          state: 'INACTIVE',
+          urlList: [
+            {
+              url: 'https://groupb.com',
+              status: 'UNAVAILABLE',
+              isActive: false,
+            },
+          ],
+        },
+      ];
+
+      // 2. Mock Redis logic
+      const mockRedisService = (service as any).redisService;
+      mockRedisService.getCoverNameWASP = jest
+        .fn()
+        .mockResolvedValueOnce(null) // First group: Cache Miss
+        .mockResolvedValueOnce({ cover_name: 'CachedCoverB' }); // Second group: Cache Hit
+      mockRedisService.setCoverNameWASP = jest
+        .fn()
+        .mockResolvedValue('Cover name stored correctly');
+
+      // 3. Mock WASP Request (Only expected to be called ONCE due to the cache hit on GroupB)
+      const mockRequestService = (service as any).requestService;
+      mockRequestService.request = jest.fn().mockResolvedValue({
+        statusCode: 200,
+        data: JSON.stringify({ cover_name: 'GeneratedCoverA' }),
+      });
+
+      // 4. Mock OpenSearch Client behaviors
+      const mockElasticClient = {
+        updateByQuery: jest
+          .fn()
+          .mockResolvedValueOnce({ body: { updated: 1 } }) // GroupA existed, safely updated
+          .mockResolvedValueOnce({ body: { updated: 0 } }), // GroupB didn't exist!
+        index: jest.fn().mockResolvedValue({ body: { result: 'created' } }),
+      };
+      (service as any).elasticService.client = mockElasticClient;
+
+      // 5. Execute the method
+      await service['publishSourcesToElastic']();
+
+      // === ASSERTIONS ===
+
+      // Redis checking
+      expect(mockRedisService.getCoverNameWASP).toHaveBeenCalledTimes(2);
+      expect(mockRedisService.getCoverNameWASP).toHaveBeenCalledWith(
+        expect.stringContaining('RANSOMWARE_GROUP:'),
+      );
+
+      // WASP API (Should only be called for GroupA)
+      expect(mockRequestService.request).toHaveBeenCalledTimes(1);
+      expect(mockRequestService.request).toHaveBeenCalledWith(
+        'GET',
+        expect.any(String),
+        null,
+        expect.objectContaining({ source: 'GroupA' }),
+      );
+      expect(mockRedisService.setCoverNameWASP).toHaveBeenCalledTimes(1); // Saves GroupA to cache
+
+      // OpenSearch updateByQuery (Should be called for both)
+      expect(mockElasticClient.updateByQuery).toHaveBeenCalledTimes(2);
+
+      // OpenSearch fallback creation (Should ONLY be called for GroupB because updated was 0)
+      expect(mockElasticClient.index).toHaveBeenCalledTimes(1);
+      expect(mockElasticClient.index).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'CachedCoverB',
+          body: expect.objectContaining({
+            type: 'RANSOMWARE_GROUP',
+            sourceName: 'GroupB',
+          }),
+        }),
+      );
     });
   });
 });

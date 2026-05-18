@@ -39,7 +39,8 @@ export class MainOrchestratorService {
     const loggerHeader = `${this.LOG_MESSAGE}::getShameSiteSources`;
     try {
       const targets = [
-        { sourceName: 'RamsonWareLive', url: 'https://www.ransomware.live' },
+      // { sourceName: 'RamsonWareLive', url: 'https://www.ransomware.live' },
+       { sourceName: 'RansomwareVictims', url: 'about:blank' } 
       ];
 
       const results: any[] = [];

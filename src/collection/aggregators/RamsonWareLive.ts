@@ -3,11 +3,12 @@ import * as cheerio from 'cheerio';
 import sleep from 'await-sleep';
 import { DefaultCollectionConfig } from '../models/shop.model';
 import { SeleniumDefault } from '../services/selenium.default';
+import { RansomwareGroup } from '../models/RansomwareGroup';
 
 export class RamsonWareLive extends SeleniumDefault {
   constructor(params: DefaultCollectionConfig) {
     super(params);
-    this.waitUntilElement = 10000;
+    this.waitUntilElement = 6000;
     this.LOG_MESSAGE = 'RamsonWareLive';
 
     this.searchUrls = [{ url: '/groups', pagePath: '' }];
@@ -25,47 +26,47 @@ export class RamsonWareLive extends SeleniumDefault {
 
   protected async getActiveGroups(pageSource: string) {
     const loggerHeader = `${this.LOG_MESSAGE}::getActiveGroups`;
-    const activeGroups: { name: string; link: string }[] = [];
+
+    const scrapedGroups: { name: string; link: string; isOnline: boolean }[] =
+      [];
 
     try {
       this.loggerService.info(
         `${loggerHeader}:: Loading HTML into Cheerio for parsing`,
       );
-      // Load the raw HTML into Cheerio
       const $ = cheerio.load(pageSource);
 
-      // Find all group list items
       const groupElements = $(this.selectors.groupItem);
 
-      // Iterate through each group element
       groupElements.each((index, element) => {
         const statusText = $(element).find(this.selectors.status).text().trim();
+        const isOnline = statusText === 'Online';
 
         const groupLink = $(element).find('a').first().attr('href');
 
-        if (!statusText.includes('Offline') && groupLink) {
+        if (groupLink) {
           const groupName = $(element)
             .find(this.selectors.groupName)
             .text()
             .trim();
 
-          // Push the valid group in the array
-          activeGroups.push({
+          scrapedGroups.push({
             name: groupName,
             link: groupLink,
+            isOnline: isOnline,
           });
         }
       });
       this.loggerService.info(
-        `${loggerHeader}:: Found ${activeGroups.length} ACTIVE groups out of ${groupElements.length} total groups.`,
+        `${loggerHeader}:: Found ${scrapedGroups.length} total groups (Online and Offline) out of ${groupElements.length} elements.`,
       );
     } catch (error) {
       this.loggerService.error(
-        `${loggerHeader}:: Error extracting active groups`,
+        `${loggerHeader}:: Error extracting groups`,
         error,
       );
     }
-    return activeGroups;
+    return scrapedGroups;
   }
 
   protected async openGroupLocations(group: { name: string; link: string }) {
@@ -100,54 +101,51 @@ export class RamsonWareLive extends SeleniumDefault {
     }
   }
 
-  protected extractAndDeduplicateUrls(pageSource: string): string[] {
+  protected extractAndDeduplicateUrls(
+    pageSource: string,
+  ): { url: string; isUrlOnline: boolean }[] {
     const loggerHeader = `${this.LOG_MESSAGE}::extractAndDeduplicateUrls`;
-    const extractedUrls: string[] = [];
+    const extractedUrls: { url: string; isUrlOnline: boolean }[] = [];
+    const $ = cheerio.load(pageSource);
 
-    try {
-      this.loggerService.info(
-        `${loggerHeader}:: Parsing locations table with Cheerio`,
-      );
+    $('table tbody tr').each((index, element) => {
+      const rowHtml = $(element).html()?.toLowerCase() || '';
+      const rowText = $(element).text().toLowerCase();
 
-      // Load the updated HTML into Cheerio
-      const $ = cheerio.load(pageSource);
-
-      // Target the rows inside the Known Locations table
-      const tableRows = $(this.selectors.pathData);
-
-      // Iterate through each row
-      tableRows.each((index, element) => {
-        // The "Available" column is the 4th
-        const availableText = $(element).find('td').eq(3).text().trim();
-
-        if (availableText === 'Yes') {
-          // The "FQDN" (URL) column is the 7th
-          const url = $(element).find('td').eq(6).text().trim();
-
-          if (url) {
-            extractedUrls.push(url);
+      let urlText = '';
+      $(element)
+        .find('td')
+        .each((i, col) => {
+          const colText = $(col).text().trim();
+          if (colText.includes('.') && !colText.includes(' ')) {
+            urlText = colText;
           }
-        }
-      });
+        });
 
-      // Deduplicate the URLs using a JavaScript Set
-      const uniqueUrls = [...new Set(extractedUrls)];
+      if (urlText) {
+        const isUrlOnline =
+          rowText.includes('online') || rowHtml.includes('badge-success');
 
-      this.loggerService.info(
-        `${loggerHeader}:: Extracted ${uniqueUrls.length} unique active URLs (from ${extractedUrls.length} total active found).`,
-      );
+        extractedUrls.push({
+          url: urlText,
+          isUrlOnline: isUrlOnline,
+        });
+      }
+    });
 
-      return uniqueUrls;
-    } catch (error) {
-      this.loggerService.error(
-        `${loggerHeader}:: Error extracting URLs from table`,
-        error,
-      );
-      return [];
-    }
+    const uniqueUrls = extractedUrls.filter(
+      (value, index, self) =>
+        index === self.findIndex((t) => t.url === value.url),
+    );
+
+    return uniqueUrls;
   }
 
-  protected createRansomwareGroupRecord(sourceName: string, urls: string[]) {
+  protected createRansomwareGroupRecord(
+    sourceName: string,
+    urls: { url: string; isUrlOnline: boolean }[],
+    isGroupOnline: boolean,
+  ): RansomwareGroup {
     const loggerHeader = `${this.LOG_MESSAGE}::createRansomwareGroupRecord`;
 
     this.loggerService.info(
@@ -155,12 +153,15 @@ export class RamsonWareLive extends SeleniumDefault {
     );
 
     // Map each unique URL to the exact OpenSearch tracking schema
-    const formattedUrlList = urls.map((rawUrl) => {
+    const formattedUrlList = urls.map((urlObj) => {
+      const rawUrl = urlObj.url;
+      const isUrlOnline = urlObj.isUrlOnline || isGroupOnline;
       const isOnion = rawUrl.endsWith('.onion');
       return {
         url: isOnion ? `http://${rawUrl}` : `https://${rawUrl}`,
-        isActive: true,
+        isActive: isUrlOnline,
         isValid: true,
+        status: isUrlOnline ? 'AVAILABLE' : 'UNAVAILABLE',
         settings: {
           exactHostMatch: false,
           wildcardPath: false,
@@ -169,54 +170,171 @@ export class RamsonWareLive extends SeleniumDefault {
         lastPasswordLogin: null,
         lastCheck: null,
         lastCookieLogin: null,
-        connType: isOnion ? 'TOR_SOCKS' : 'proxy',
-        driverType: 'chrome',
+        connType: isOnion ? 'TOR_SOCKS' : 'PROXY',
+        driverType: 'Chrome',
         lastLoginType: '',
-        status: '',
       };
     });
 
-    // Wrap and return the complete group object
     return {
       type: 'RANSOMWARE_GROUP',
-      state: 'ACTIVE',
+      state: isGroupOnline ? 'ACTIVE' : 'INACTIVE',
       sourceName: sourceName,
       urlList: formattedUrlList,
     };
   }
 
+  protected async publishSourcesToElastic() {
+    const loggerHeader = `${this.LOG_MESSAGE}::publishSourcesToElastic`;
+
+    this.loggerService.info(
+      `${loggerHeader}:: Processing all ${this.parsedRawPosts.length} groups`,
+    );
+
+    for (const rawGroup of this.parsedRawPosts) {
+      const group = rawGroup as RansomwareGroup;
+      try {
+        const env = process.env.ENVIRONMENT === 'production' ? 'PROD' : 'DEV';
+        const coverNameKey = `RANSOMWARE_GROUP:${env}:${group.sourceName}`;
+
+        let coverNameObj =
+          await this.redisService.getCoverNameWASP(coverNameKey);
+
+        if (!coverNameObj) {
+          const waspParams = {
+            type: 'RANSOMWARE_GROUP',
+            source: group.sourceName,
+            create_source: true,
+            parent_source: group.sourceName,
+            create_missing_source: false,
+          };
+
+          const response = await this.requestService.request(
+            'GET',
+            `${process.env.WASP}/covername/getCoverName`,
+            null,
+            waspParams,
+          );
+
+          if (response.statusCode === 200 && response.data) {
+            coverNameObj = JSON.parse(response.data);
+
+            await this.redisService.setCoverNameWASP(
+              coverNameObj,
+              coverNameKey,
+            );
+          } else {
+            throw new Error(
+              `Failed to get cover name from WASP for ${group.sourceName}`,
+            );
+          }
+        }
+
+        group.coverName = coverNameObj.cover_name;
+
+        const updateScript = `
+          ctx._source.state = params.state;
+          
+          if (ctx._source.reaperSettings != null) {
+            ctx._source.reaperSettings.active = params.isOnline;
+          } else {
+            ctx._source.reaperSettings = ['active': params.isOnline];
+          }
+          
+          if (params.urlList != null) {
+            ctx._source.urlList = params.urlList;
+          }
+        `;
+
+        const updateResponse = await this.elasticService.client!.updateByQuery({
+          index: process.env.ES_SOURCES || 'sources',
+          refresh: true,
+          conflicts: 'proceed',
+          body: {
+            query: {
+              ids: { values: [group.coverName] },
+            },
+            script: {
+              source: updateScript,
+              params: {
+                state: group.state,
+                isOnline: group.isOnline,
+                urlList: group.urlList,
+              },
+            },
+          },
+        });
+
+        if (updateResponse.body.updated === 0) {
+          this.loggerService.info(
+            `${loggerHeader}:: Group ${group.sourceName} not found in DB. Creating as new...`,
+          );
+
+          await this.elasticService.client!.index({
+            index: process.env.ES_SOURCES || 'sources',
+            id: group.coverName as string,
+            refresh: true,
+            body: {
+              type: 'RANSOMWARE_GROUP',
+              sourceName: group.sourceName,
+              state: group.state,
+              isSubsource: false,
+              urlList: group.urlList,
+              reaperSettings: { active: group.isOnline },
+            },
+          });
+
+          this.loggerService.info(
+            `${loggerHeader}:: Successfully created new group ${group.sourceName}`,
+          );
+        } else {
+          this.loggerService.info(
+            `${loggerHeader}:: Successfully updated existing group ${group.sourceName} via updateByQuery`,
+          );
+        }
+      } catch (error) {
+        this.loggerService.error(
+          `${loggerHeader}:: Error processing group ${group.sourceName}`,
+          error,
+        );
+      }
+    }
+
+    this.loggerService.info(
+      `${loggerHeader}:: Finished OpenSearch updates for all groups!`,
+    );
+  }
+
   protected async searchProcess(): Promise<boolean> {
     const loggerHeader = `${this.LOG_MESSAGE}::searchProcess`;
-    const results: any[] = [];
+    const results: RansomwareGroup[] = [];
 
     try {
       this.loggerService.info(`${loggerHeader}:: Starting extraction`);
 
-      // Get initial page and filter active groups
       const initialHtml = await this.getSourceText();
-      const activeGroups = await this.getActiveGroups(initialHtml);
+      const scrapedGroups = await this.getActiveGroups(initialHtml);
 
-      // Iterate through each active group
-      for (const group of activeGroups) {
-        // Navigate and open the table
+      for (const group of scrapedGroups) {
         await this.openGroupLocations(group);
-
-        // Get updated HTML and extract URLs
         const updatedHtml = await this.getSourceText();
         const cleanUrls = this.extractAndDeduplicateUrls(updatedHtml);
 
-        // Build the final JSON object
-        if (cleanUrls.length > 0) {
-          const groupPayload = this.createRansomwareGroupRecord(
-            group.name,
-            cleanUrls,
-          );
-          results.push(groupPayload);
-        }
+        const groupPayload = this.createRansomwareGroupRecord(
+          group.name,
+          cleanUrls,
+          group.isOnline,
+        );
+
+        results.push({
+          ...groupPayload,
+          isOnline: group.isOnline,
+        });
       }
 
-      // Save to class property so processShop() can return it
       this.parsedRawPosts = results;
+
+      await this.publishSourcesToElastic();
     } catch (error) {
       await this.loggerService.error(
         `${loggerHeader}:: Error during search process`,

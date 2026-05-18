@@ -13,6 +13,7 @@ const { By } = require('selenium-webdriver');
 import { SeleniumService } from './selenium.service';
 import { RedisService } from '../../global/services/redis.service';
 import { PubsubService } from '../../global/services/pubsub.service';
+import { RequestService } from '../../services/request.service';
 import * as lodash from 'lodash';
 import {
   isPhoneGrpcCompliant,
@@ -142,6 +143,7 @@ export class DefaultCollectionService {
   protected parsers: Parsers;
   protected pubsubService: PubsubService;
   protected globalService: GlobalService;
+  protected requestService: RequestService;
   protected elasticService: ElasticService;
   protected takeScreenshot = false;
   protected searchUrls: any = [];
@@ -167,6 +169,7 @@ export class DefaultCollectionService {
     this.redisService = params.redisService;
     this.pubsubService = params.pubsubService;
     this.globalService = params.globalService;
+    this.requestService = params.requestService;
     this.LOG_MESSAGE = `PhoneCollectionService::${this.source}`;
 
     this.takeScreenshot = params.takeScreenshot || false;

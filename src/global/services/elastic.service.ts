@@ -331,6 +331,52 @@ export class ElasticService {
     return query;
   }
 
+  // Get active ransomware groups for the daily victim scraper
+  async queryActiveRansomwareGroups() {
+    await this.testElastic();
+
+    if (!this.client) {
+      return [];
+    }
+
+    const query: any = await this.client.search({
+      index: process.env.ES_SOURCES || 'sources-dev',
+      size: 500,
+      _source: ['id', 'sourceName', 'coverName', 'urlList', 'reaperSettings'],
+      body: {
+        query: {
+          bool: {
+            must: [
+              {
+                term: {
+                  type: {
+                    value: 'RANSOMWARE_GROUP',
+                  },
+                },
+              },
+              {
+                term: {
+                  'state.keyword': {
+                    value: 'ACTIVE',
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    const results: any[] = [];
+    const hits = query.body?.hits?.hits || [];
+
+    hits.forEach((element: any) => {
+      results.push(element._source);
+    });
+
+    return results;
+  }
+
   async getUsersAndStateByShop(sourceName) {
     await this.testElastic();
     if (!this.client) {
