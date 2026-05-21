@@ -8,8 +8,8 @@ services:
       secrets:
         - npmtoken
   
-    container_name: shamecollector
-    image: us-east1-docker.pkg.dev/q6dev-186015/shame-collector/shame-collector:v1.0.0
+    container_name: shame-collector
+    image: us-east1-docker.pkg.dev/stable-glass-183220/shame-collector/shame-collector:v1.0.0
     ports:
       - ${PORT}:${PORT} 
     environment:
