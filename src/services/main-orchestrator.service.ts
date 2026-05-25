@@ -35,18 +35,22 @@ export class MainOrchestratorService {
     return result;
   }
 
-  async getShameSiteSources(): Promise<boolean> {
+  async getShameSiteSources(): Promise<any[]> {
     const loggerHeader = `${this.LOG_MESSAGE}::getShameSiteSources`;
     try {
       const targets = [
-        { sourceName: 'RamsonWareLive', url: 'https://www.ransomware.live' },
+      // { sourceName: 'RamsonWareLive', url: 'https://www.ransomware.live' },
+       { sourceName: 'RansomwareVictims', url: 'about:blank' } 
       ];
 
+      const results: any[] = [];
       for (const target of targets) {
-        await this.collectionOrchestratorService.getSourcesFromShameSite(
+        const result = await this.collectionOrchestratorService.getSourcesFromShameSite(
           target,
         );
+        results.push(result);
       }
+      return results;
     } catch (error) {
       await this.loggerService.error(
         `${loggerHeader}::Error getting shame site sources`,
@@ -54,6 +58,5 @@ export class MainOrchestratorService {
       );
       throw error;
     }
-    return true;
   }
 }

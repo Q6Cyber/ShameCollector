@@ -24,9 +24,9 @@ export class MainController {
   // @Get('startShameCollector')
   public async startShameCollector(): Promise<any> {
     if (process.env.DISABLE_CRON === '1') return true;
-    await this.loggerService.info('STARTING SHAMECOLLECTOR');
+    await this.loggerService.info(`STARTING ${process.env.APP_ID} SERVICE`);
     if (this.globalService.isActive()) {
-      await this.loggerService.info('SHAMECOLLECTOR ACTIVE AND RUNNING');
+      await this.loggerService.info(`${process.env.APP_ID} ACTIVE AND RUNNING`);
       // await this.feederService.getBinStats();
     }
     return true;
@@ -37,16 +37,8 @@ export class MainController {
   @Get('getShameSiteSources')
   public async getShameSiteSources(): Promise<any> {
     if (process.env.DISABLE_CRON === '1') return true;
-    // const targets = [
-    //   'anonymsms',
-    //   'Free Phone Number',
-    //   'smscodeonline',
-    //   'sms24',
-    //   '7sim',
-    //   'online-sms',
-    // ];
-    this.mainOrchestratorService.getShameSiteSources();
-    return true;
+    const result = await this.mainOrchestratorService.getShameSiteSources();
+    return result;
   }
 
   @Get('isShameCollectorActive')

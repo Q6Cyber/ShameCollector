@@ -8,8 +8,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
   const options = new DocumentBuilder()
-    .setTitle('SmartCollector')
-    .setDescription('Service incharge of collect cards from shops')
+    .setTitle('ShameCollector')
+    .setDescription('Service in charge of extracting and processing ransomware victim data.')
     .setVersion('1.0')
     .addTag('Service End Points')
     .build();

@@ -13,6 +13,7 @@ const { By } = require('selenium-webdriver');
 import { SeleniumService } from './selenium.service';
 import { RedisService } from '../../global/services/redis.service';
 import { PubsubService } from '../../global/services/pubsub.service';
+import { RequestService } from '../../services/request.service';
 import * as lodash from 'lodash';
 import {
   isPhoneGrpcCompliant,
@@ -35,9 +36,12 @@ interface Selectors {
   urlParam?: string;
   urlTail?: string;
   isValidElement?: string;
-  countryPath: string;
-  phonePath: string;
+  countryPath?: string;
+  phonePath?: string;
   modalElement?: string;
+  groupItem: string;
+  status: string;
+  groupName: string;
 }
 
 /**
@@ -73,9 +77,9 @@ export class DefaultCollectionService {
   protected parentUrl;
   protected stopSearchPost = false;
   protected threadSearch;
-  protected rawPosts = []; // Object got it from shop
-  protected parsedRawPosts = []; // Card raw parsed from shop
-  protected parsedRawPostsLog = []; // Card raw parsed from shop
+  protected rawPosts: any[] = []; // Object got it from shop
+  protected parsedRawPosts: any[] = []; // Card raw parsed from shop
+  protected parsedRawPostsLog: any[] = []; // Card raw parsed from shop
   protected parsedForumMessages: any = []; // Card already parsed
   protected filters: any[];
   protected currentPage = 1;
@@ -125,6 +129,9 @@ export class DefaultCollectionService {
     countryPath: '',
     phonePath: '',
     modalElement: '',
+    groupItem: '',
+    status: '',
+    groupName: '',
   };
 
   protected readonly source: string;
@@ -136,6 +143,7 @@ export class DefaultCollectionService {
   protected parsers: Parsers;
   protected pubsubService: PubsubService;
   protected globalService: GlobalService;
+  protected requestService: RequestService;
   protected elasticService: ElasticService;
   protected takeScreenshot = false;
   protected searchUrls: any = [];
@@ -161,6 +169,7 @@ export class DefaultCollectionService {
     this.redisService = params.redisService;
     this.pubsubService = params.pubsubService;
     this.globalService = params.globalService;
+    this.requestService = params.requestService;
     this.LOG_MESSAGE = `PhoneCollectionService::${this.source}`;
 
     this.takeScreenshot = params.takeScreenshot || false;
