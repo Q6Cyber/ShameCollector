@@ -1,7 +1,8 @@
 name: DevBuild&Deploy
 on:
   push:
-    branch: task/SRE-127-add-github-actions-to-shame-collector
+    branches:
+      - task/SRE-127-add-github-actions-to-shame-collector
   # workflow_dispatch:
   #   inputs:
   #     branch:
