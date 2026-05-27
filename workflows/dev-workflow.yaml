@@ -2,7 +2,7 @@ name: DevBuild&Deploy
 on:
   push:
     branches:
-      - task/SRE-127-add-github-actions-to-shame-collector
+    - task/SRE-127-add-github-actions-to-shame-collector
   # workflow_dispatch:
   #   inputs:
   #     branch:
@@ -10,7 +10,7 @@ on:
   #       required: true
   #       default: develop
   #       type: string
-  
+
 env:
   PROJECT_ID: "q6dev-186015"
   IMAGE_NAME: 'shame-collector'
