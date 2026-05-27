@@ -9,7 +9,7 @@ env:
   IMAGE_NAME: 'shame-collector'
   ENV_NAME: 'dev'
 jobs:
-  buildAndUploadDevWorkerArtifact:
+  buildAndUploadDevArtifact:
     runs-on:
       group: q6dev-186015
       labels:
@@ -67,7 +67,7 @@ jobs:
           docker push us-docker.pkg.dev/$PROJECT_ID/us.gcr.io/$IMAGE_NAME:${{ github.sha }}
           docker push us-docker.pkg.dev/$PROJECT_ID/us.gcr.io/$IMAGE_NAME:latest
 
-  # triggerDevWorkerHelmWorkFlow:
+  # triggerDevWorkerFlow:
   #   needs:
   #     - buildAndUploadDevWorkerArtifact
   #   runs-on:
