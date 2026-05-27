@@ -10,6 +10,7 @@ on:
   #       required: true
   #       default: develop
   #       type: string
+  
 env:
   PROJECT_ID: "q6dev-186015"
   IMAGE_NAME: 'shame-collector'
