@@ -2,7 +2,7 @@ name: DevBuild&Deploy
 on:
   push:
     branches:
-    - task/SRE-127-add-github-actions-to-shame-collector
+      - 'task/**'
 
 env:
   PROJECT_ID: "q6dev-186015"
