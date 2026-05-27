@@ -7,9 +7,6 @@ on:
         required: true
         default: master
         type: string
-  push:
-    branches:
-    - master
 env:
   PROJECT_ID: "stable-glass-183220"
   IMAGE_NAME: 'shame-collector'
@@ -70,7 +67,7 @@ jobs:
           docker push us-docker.pkg.dev/$PROJECT_ID/us.gcr.io/$IMAGE_NAME:${{ github.sha }}
           docker push us-docker.pkg.dev/$PROJECT_ID/us.gcr.io/$IMAGE_NAME:latest
 
-  triggerProdHelmWorkFlow:
+  triggerProdHelmFlow:
     needs:
       - buildAndUploadProdArtifact
     runs-on:
@@ -85,8 +82,8 @@ jobs:
           node-version: 24
       - name: Get code
         uses: actions/checkout@v6
-      - name: Trigger Helm Chart Workflow
-        uses: q6Cyber/helm-chart-trigger-workflow@v3
+      - name: Trigger Helm Chart flow
+        uses: q6Cyber/helm-chart-trigger-flow@v3
         with:
           git-token: ${{ secrets.GIT_TOKEN }}
           env: 'prod'

@@ -71,27 +71,27 @@ jobs:
           docker push us-docker.pkg.dev/$PROJECT_ID/us.gcr.io/$IMAGE_NAME:${{ github.sha }}
           docker push us-docker.pkg.dev/$PROJECT_ID/us.gcr.io/$IMAGE_NAME:latest
 
-  # triggerDevHelmWorkFlow:
-  #   needs:
-  #     - buildAndUploadDevArtifact
-  #   runs-on:
-  #     group: q6dev-186015
-  #     labels:
-  #       - q6dev-186015
-  #       - standard-2
-  #   steps:
-  #     - uses: actions/checkout@v6
-  #     - uses: actions/setup-node@v6
-  #       with:
-  #         node-version: 24
-  #     - name: Get code
-  #       uses: actions/checkout@v6
-  #     - name: Trigger Helm Chart Workflow
-  #       uses: q6Cyber/helm-chart-trigger-workflow@v3
-  #       with:
-  #         git-token: ${{ secrets.GIT_TOKEN }}
-  #         env: 'dev'
-  #         application: 'shame-collector'
-  #         tag: ${{ github.sha }}
-  #         image: 'shame-collector'
-  #         image-key: 'deployment.image'
+  triggerDevHelmWorkFlow:
+    needs:
+      - buildAndUploadDevArtifact
+    runs-on:
+      group: q6dev-186015
+      labels:
+        - q6dev-186015
+        - standard-2
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Get code
+        uses: actions/checkout@v6
+      - name: Trigger Helm Chart Workflow
+        uses: q6Cyber/helm-chart-trigger-workflow@v3
+        with:
+          git-token: ${{ secrets.GIT_TOKEN }}
+          env: 'dev'
+          application: 'shame-collector'
+          tag: ${{ github.sha }}
+          image: 'shame-collector'
+          image-key: 'deployment.image'
