@@ -1,12 +1,8 @@
 name: DevBuild&Deploy
 on:
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: Select the branch to deploy
-        required: true
-        default: develop
-        type: string
+  push:
+    branches:
+    - task/SRE-127-add-github-actions-to-shame-collector
 
 env:
   PROJECT_ID: "q6dev-186015"
